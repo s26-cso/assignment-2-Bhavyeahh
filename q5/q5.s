@@ -23,8 +23,9 @@ main:
 	la a1, fmode
 	call fopen
 	mv s0, a0
-	beqz s0, .Lprint_no_result
+	beqz s0, .Lprint_no
 
+	# jump to end once to get total length via ftell
 	mv a0, s0
 	li a1, 0
 	li a2, 2
@@ -33,13 +34,14 @@ main:
 	mv a0, s0
 	call ftell
 	mv s3, a0
-	bltz s3, .Lclose_file_and_print_no
+	bltz s3, .Lclose_and_print_no
 
 	li s1, 0
 	addi s2, s3, -1
 
-.Lpalindrome_check_loop:
-	bge s1, s2, .Lclose_file_and_print_yes
+	# compare mirrored characters: left index s1 vs right index s2
+.Lcheck_loop:
+	bge s1, s2, .Lclose_and_print_yes
 
 	mv a0, s0
 	mv a1, s1
@@ -56,29 +58,29 @@ main:
 	mv a0, s0
 	call fgetc
 
-	bne s4, a0, .Lclose_file_and_print_no
+	bne s4, a0, .Lclose_and_print_no
 	addi s1, s1, 1
 	addi s2, s2, -1
-	j .Lpalindrome_check_loop
+	j .Lcheck_loop
 
-.Lclose_file_and_print_yes:
+.Lclose_and_print_yes:
 	mv a0, s0
 	call fclose
 	la a0, yes_str
 	call puts
 	li a0, 0
-	j .Lrestore_and_return
+	j .Ldone
 
-.Lclose_file_and_print_no:
+.Lclose_and_print_no:
 	mv a0, s0
 	call fclose
 
-.Lprint_no_result:
+.Lprint_no:
 	la a0, no_str
 	call puts
 	li a0, 0
 
-.Lrestore_and_return:
+.Ldone:
 	ld s4, 16(sp)
 	ld s3, 24(sp)
 	ld s2, 32(sp)

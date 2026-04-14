@@ -6,6 +6,7 @@ make_node:
 	sd ra, 8(sp)
 	sd s0, 0(sp)
 
+	# keep the requested value safe while malloc uses a0
 	mv s0, a0
 	li a0, 24
 	call malloc
@@ -31,45 +32,46 @@ insert:
 
 	mv s1, a0
 	mv s2, a1
-	beqz s1, .Linsert_when_tree_empty
+	beqz s1, .Linsert_empty_tree
 
+	# s0 walks the tree one node at a time until a free child slot appears
 	mv s0, s1
-.Linsert_search_position_loop:
+.Linsert_walk:
 	lw t0, 0(s0)
-	blt s2, t0, .Linsert_move_left
-	bgt s2, t0, .Linsert_move_right
-	j .Linsert_finish
+	beq s2, t0, .Linsert_done
+	blt s2, t0, .Linsert_left
+	j .Linsert_right
 
-.Linsert_move_left:
+.Linsert_left:
 	ld t1, 8(s0)
-	beqz t1, .Linsert_attach_new_left_child
+	beqz t1, .Linsert_attach_left
 	mv s0, t1
-	j .Linsert_search_position_loop
+	j .Linsert_walk
 
-.Linsert_attach_new_left_child:
+.Linsert_attach_left:
 	mv a0, s2
 	call make_node
 	sd a0, 8(s0)
-	j .Linsert_finish
+	j .Linsert_done
 
-.Linsert_move_right:
+.Linsert_right:
 	ld t1, 16(s0)
-	beqz t1, .Linsert_attach_new_right_child
+	beqz t1, .Linsert_attach_right
 	mv s0, t1
-	j .Linsert_search_position_loop
+	j .Linsert_walk
 
-.Linsert_attach_new_right_child:
+.Linsert_attach_right:
 	mv a0, s2
 	call make_node
 	sd a0, 16(s0)
-	j .Linsert_finish
+	j .Linsert_done
 
-.Linsert_when_tree_empty:
+.Linsert_empty_tree:
 	mv a0, s2
 	call make_node
 	mv s1, a0
 
-.Linsert_finish:
+.Linsert_done:
 	mv a0, s1
 	ld s2, 8(sp)
 	ld s1, 16(sp)
@@ -83,23 +85,23 @@ get:
 	mv t0, a0
 	mv t1, a1
 
-.Lget_search_loop:
-	beqz t0, .Lget_value_not_found
+.Lget_walk:
+	beqz t0, .Lget_not_found
 	lw t2, 0(t0)
-	beq t2, t1, .Lget_value_found
-	blt t1, t2, .Lget_move_left
+	beq t1, t2, .Lget_found
+	blt t1, t2, .Lget_left
 	ld t0, 16(t0)
-	j .Lget_search_loop
+	j .Lget_walk
 
-.Lget_move_left:
+.Lget_left:
 	ld t0, 8(t0)
-	j .Lget_search_loop
+	j .Lget_walk
 
-.Lget_value_found:
+.Lget_found:
 	mv a0, t0
 	ret
 
-.Lget_value_not_found:
+.Lget_not_found:
 	li a0, 0
 	ret
 
@@ -108,18 +110,19 @@ getAtMost:
 	mv t0, a1
 	li t1, -1
 
-.Lget_at_most_loop:
-	beqz t0, .Lget_at_most_done
+	# t1 remembers the best floor candidate seen so far
+.Lgetatmost_walk:
+	beqz t0, .Lgetatmost_done
 	lw t2, 0(t0)
-	ble t2, a0, .Lget_at_most_take_candidate
+	ble t2, a0, .Lgetatmost_take
 	ld t0, 8(t0)
-	j .Lget_at_most_loop
+	j .Lgetatmost_walk
 
-.Lget_at_most_take_candidate:
+.Lgetatmost_take:
 	mv t1, t2
 	ld t0, 16(t0)
-	j .Lget_at_most_loop
+	j .Lgetatmost_walk
 
-.Lget_at_most_done:
+.Lgetatmost_done:
 	mv a0, t1
 	ret
